@@ -41,7 +41,7 @@ public class Invincibility implements EventExecutor {
 
 	private GameTimer timer;
 
-	public boolean Start(boolean isInfinite) {
+	public boolean start(boolean isInfinite) {
 		if (timer == null || !timer.isRunning()) {
 			if (!isInfinite) {
 				this.timer = new InvincibilityTimer(duration);
@@ -54,7 +54,7 @@ public class Invincibility implements EventExecutor {
 		return false;
 	}
 
-	public boolean Start(final int duration) {
+	public boolean start(final int duration) {
 		if (timer == null || !timer.isRunning()) {
 			this.timer = new InvincibilityTimer(duration);
 			timer.start();
@@ -63,7 +63,7 @@ public class Invincibility implements EventExecutor {
 		return false;
 	}
 
-	public boolean Stop() {
+	public boolean stop() {
 		if (timer != null && timer.isRunning()) {
 			timer.stop(false);
 			timer = null;
@@ -72,15 +72,16 @@ public class Invincibility implements EventExecutor {
 		return false;
 	}
 
-	public boolean isInvincible() {
+	public boolean isEnabled() {
 		return this.timer != null && this.timer.isRunning();
 	}
 
 	@Override
 	public void execute(Listener listener, Event event) {
-		if (isInvincible() && event instanceof EntityDamageEvent) {
+		if (!isEnabled()) return;
+		if (event instanceof EntityDamageEvent) {
 			EntityDamageEvent e = (EntityDamageEvent) event;
-			if (e.getEntity() instanceof Player && game.isParticipating((Player) e.getEntity())) {
+			if (e.getEntity() instanceof Player && game.isParticipating(e.getEntity().getUniqueId())) {
 				e.setCancelled(true);
 			}
 		}
@@ -126,8 +127,7 @@ public class Invincibility implements EventExecutor {
 					bossBar.setTitle(String.format(bossbarMessage, time[0], time[1])).setProgress(Math.min(count / (double) getMaximumCount(), 1.0));
 				}
 				if (count == (getMaximumCount()) / 2 || (count <= 5 && count >= 1)) {
-					Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
-							"&a무적이 &f" + TimeUtil.parseTimeAsString(count) + " &a후에 해제됩니다."));
+					Bukkit.broadcastMessage("§a무적이 §f" + TimeUtil.parseTimeAsString(count) + " §a후에 해제됩니다.");
 					SoundLib.BLOCK_NOTE_BLOCK_HARP.broadcastSound();
 				}
 			}

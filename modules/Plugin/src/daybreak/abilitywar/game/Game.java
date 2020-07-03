@@ -1,6 +1,7 @@
 package daybreak.abilitywar.game;
 
 import com.google.common.base.Preconditions;
+import daybreak.abilitywar.AbilityWar;
 import daybreak.abilitywar.ability.AbilityBase;
 import daybreak.abilitywar.config.Configuration.Settings;
 import daybreak.abilitywar.game.event.GameEndEvent;
@@ -21,8 +22,11 @@ import java.util.Random;
 import javax.naming.OperationNotSupportedException;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.weather.WeatherChangeEvent;
 
@@ -40,9 +44,23 @@ public abstract class Game extends AbstractGame implements AbilitySelect.Handler
 	private final ScoreboardManager scoreboardManager = new ScoreboardManager(this);
 	private final Firewall fireWall = new Firewall(this, this);
 	private final AbilitySelect abilitySelect = newAbilitySelect();
+	private final Listener listener = new Listener() {
+		@EventHandler
+		public void onWeatherChange(WeatherChangeEvent e) {
+			if (Settings.getClearWeather() && e.toWeatherState()) e.setCancelled(true);
+		}
+
+		@EventHandler
+		public void onFoodLevelChange(FoodLevelChangeEvent e) {
+			if (Settings.getNoHunger()) {
+				e.setFoodLevel(19);
+			}
+		}
+	};
 
 	@Override
 	protected void onStart() {
+		Bukkit.getPluginManager().registerEvents(listener, AbilityWar.getPlugin());
 		Bukkit.getPluginManager().callEvent(new GameReadyEvent(this));
 	}
 
@@ -59,13 +77,14 @@ public abstract class Game extends AbstractGame implements AbilitySelect.Handler
 	@Override
 	protected void onEnd() {
 		super.onEnd();
+		HandlerList.unregisterAll(listener);
 		Bukkit.getPluginManager().callEvent(new GameEndEvent(this));
 	}
 
 	/**
 	 * 게임 진행
 	 */
-	protected abstract void progressGame(int Seconds);
+	protected abstract void progressGame(int seconds);
 
 	/**
 	 * AbilitySelect 초깃값 설정
@@ -78,7 +97,7 @@ public abstract class Game extends AbstractGame implements AbilitySelect.Handler
 			private List<Class<? extends AbilityBase>> abilities;
 
 			@Override
-			protected void drawAbility(Collection<Participant> selectors) {
+			protected void drawAbility(Collection<? extends Participant> selectors) {
 				abilities = AbilitySelectStrategy.EVERY_ABILITY_EXCLUDING_BLACKLISTED.getAbilities();
 				if (getSelectors().size() <= abilities.size()) {
 					Random random = new Random();
@@ -90,9 +109,9 @@ public abstract class Game extends AbstractGame implements AbilitySelect.Handler
 							abilities.remove(abilityClass);
 
 							participant.getPlayer().sendMessage(new String[]{
-									ChatColor.translateAlternateColorCodes('&', "&a능력이 할당되었습니다. &e/aw check&f로 확인 할 수 있습니다."),
-									ChatColor.translateAlternateColorCodes('&', "&e/aw yes &f명령어를 사용하여 능력을 확정합니다."),
-									ChatColor.translateAlternateColorCodes('&', "&e/aw no &f명령어를 사용하여 능력을 변경합니다.")
+									"§a능력이 할당되었습니다. §e/aw check§f로 확인 할 수 있습니다.",
+									"§e/aw yes §f명령어를 사용하여 능력을 확정합니다.",
+									"§e/aw no §f명령어를 사용하여 능력을 변경합니다."
 							});
 						} catch (IllegalAccessException | SecurityException | InstantiationException | IllegalArgumentException | InvocationTargetException e) {
 							logger.error(ChatColor.YELLOW + participant.getPlayer().getName() + ChatColor.WHITE + "님에게 능력을 할당하는 도중 오류가 발생하였습니다.");
@@ -107,9 +126,9 @@ public abstract class Game extends AbstractGame implements AbilitySelect.Handler
 						try {
 							participant.setAbility(abilityClass);
 							participant.getPlayer().sendMessage(new String[]{
-									ChatColor.translateAlternateColorCodes('&', "&a능력이 할당되었습니다. &e/aw check&f로 확인 할 수 있습니다."),
-									ChatColor.translateAlternateColorCodes('&', "&e/aw yes &f명령어를 사용하여 능력을 확정합니다."),
-									ChatColor.translateAlternateColorCodes('&', "&e/aw no &f명령어를 사용하여 능력을 변경합니다.")
+									"§a능력이 할당되었습니다. §e/aw check§f로 확인 할 수 있습니다.",
+									"§e/aw yes §f명령어를 사용하여 능력을 확정합니다.",
+									"§e/aw no §f명령어를 사용하여 능력을 변경합니다."
 							});
 						} catch (IllegalAccessException | SecurityException | InstantiationException | IllegalArgumentException | InvocationTargetException e) {
 							logger.error(ChatColor.YELLOW + participant.getPlayer().getName() + ChatColor.WHITE + "님에게 능력을 할당하는 도중 오류가 발생하였습니다.");
@@ -228,19 +247,13 @@ public abstract class Game extends AbstractGame implements AbilitySelect.Handler
 			Bukkit.broadcastMessage("§cW§6R§eE§aC§bK §f모드가 활성화되었습니다!");
 			Bukkit.broadcastMessage("§c모든 능력의 쿨타임이 §4" + Settings.getCooldownDecrease().getPercentage() + "% §c감소합니다.");
 		}
-		Bukkit.getPluginManager().callEvent(new GameStartEvent(this));
-	}
-
-	@EventHandler
-	public void onWeatherChange(WeatherChangeEvent e) {
-		if (Settings.getClearWeather() && e.toWeatherState()) e.setCancelled(true);
-	}
-
-	@EventHandler
-	public void onFoodLevelChange(FoodLevelChangeEvent e) {
-		if (Settings.getNoHunger()) {
-			e.setFoodLevel(19);
+		if (Settings.isDefaultMaxHealthEnabled()) {
+			for (Participant participant : getParticipants()) {
+				participant.getPlayer().getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(Settings.getDefaultMaxHealth());
+				participant.getPlayer().setHealth(participant.getPlayer().getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue());
+			}
 		}
+		Bukkit.getPluginManager().callEvent(new GameStartEvent(this));
 	}
 
 }

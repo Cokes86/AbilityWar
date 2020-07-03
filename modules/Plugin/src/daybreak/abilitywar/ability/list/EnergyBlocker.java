@@ -12,7 +12,7 @@ import daybreak.abilitywar.game.AbstractGame.Participant.ActionbarNotification.A
 import daybreak.abilitywar.utils.base.concurrent.TimeUnit;
 import daybreak.abilitywar.utils.library.ParticleLib;
 import daybreak.abilitywar.utils.library.ParticleLib.RGB;
-import org.bukkit.ChatColor;
+import java.util.Random;
 import org.bukkit.Material;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
@@ -21,7 +21,8 @@ import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 		"원거리 공격 피해를 1/3로, 근거리 공격 피해를 두 배로 받거나",
 		"원거리 공격 피해를 두 배로, 근거리 공격 피해를 1/3로 받을 수 있습니다.",
 		"철괴를 우클릭하면 각각의 피해 정도를 뒤바꿉니다.",
-		"철괴를 좌클릭하면 현재 상태를 확인할 수 있습니다."
+		"철괴를 좌클릭하면 현재 상태를 확인할 수 있습니다.",
+		"$[PARTICLE_NOTICE]"
 })
 public class EnergyBlocker extends AbilityBase implements ActiveHandler {
 
@@ -38,26 +39,28 @@ public class EnergyBlocker extends AbilityBase implements ActiveHandler {
 		if (materialType.equals(Material.IRON_INGOT)) {
 			if (clickType.equals(ClickType.RIGHT_CLICK)) {
 				projectileBlocking = !projectileBlocking;
-				getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', getState() + "로 변경되었습니다."));
+				getPlayer().sendMessage(getState() + "로 변경되었습니다.");
 				actionbarChannel.update(getState());
 			} else if (clickType.equals(ClickType.LEFT_CLICK)) {
-				getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', "&6현재 상태&f: ") + getState());
+				getPlayer().sendMessage("§6현재 상태§f: " + getState());
 			}
 		}
 
 		return false;
 	}
 
-	public String getState() {
-		if (projectileBlocking) return ChatColor.translateAlternateColorCodes('&', "&b원거리 &f1/3 배&7, &a근거리 &f두 배");
-		else return ChatColor.translateAlternateColorCodes('&', "&b원거리 &f두 배&7, &a근거리 &f1/3 배");
-	}
+	private final boolean particleShowState = new Random().nextBoolean();
 
 	private static final RGB LONG_DISTANCE = RGB.of(116, 237, 167);
 	private static final RGB SHORT_DISTANCE = RGB.of(85, 237, 242);
-
+	private final Object PARTICLE_NOTICE = new Object() {
+		@Override
+		public String toString() {
+			return "현재 " + (particleShowState ? "취약한 공격" : "방어 중인 공격") + "이 머리 위에 파티클로 뜹니다.";
+		}
+	};
 	@Scheduled
-	private final Timer particle = new Timer() {
+	private final Timer particle = particleShowState ? new Timer() {
 
 		@Override
 		public void run(int count) {
@@ -68,7 +71,22 @@ public class EnergyBlocker extends AbilityBase implements ActiveHandler {
 			}
 		}
 
+	}.setPeriod(TimeUnit.TICKS, 1) : new Timer() {
+
+		@Override
+		public void run(int count) {
+			if (projectileBlocking) {
+				ParticleLib.REDSTONE.spawnParticle(getPlayer().getEyeLocation().add(0, 0.5, 0), SHORT_DISTANCE);
+			} else {
+				ParticleLib.REDSTONE.spawnParticle(getPlayer().getLocation().add(0, 2.2, 0), LONG_DISTANCE);
+			}
+		}
+
 	}.setPeriod(TimeUnit.TICKS, 1);
+
+	public String getState() {
+		return projectileBlocking ? "§b원거리 §f1/3 배§7, §a근거리 §f두 배" : "§b원거리 §f두 배§7, §a근거리 §f1/3 배";
+	}
 
 	@SubscribeEvent
 	public void onEntityDamageByEntity(EntityDamageByEntityEvent e) {

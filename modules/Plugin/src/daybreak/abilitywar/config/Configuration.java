@@ -8,6 +8,7 @@ import daybreak.abilitywar.config.serializable.team.PresetContainer;
 import daybreak.abilitywar.game.AbstractGame;
 import daybreak.abilitywar.game.list.standard.DefaultGame;
 import daybreak.abilitywar.utils.base.io.FileUtil;
+import daybreak.abilitywar.utils.base.logging.Logger;
 import daybreak.abilitywar.utils.base.reflect.ReflectionUtil.ClassUtil;
 import java.io.File;
 import java.io.IOException;
@@ -18,7 +19,6 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.bukkit.Location;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.inventory.ItemStack;
@@ -216,10 +216,6 @@ public class Configuration {
 			return getBoolean(ConfigNodes.GAME_VISUAL_EFFECT);
 		}
 
-		public static boolean isBlackListed(String abilityName) {
-			return getBlackList().contains(abilityName);
-		}
-
 		public static Set<String> getBlackList() {
 			return getSet(ConfigNodes.GAME_BLACKLIST);
 		}
@@ -228,31 +224,56 @@ public class Configuration {
 			return get(ConfigNodes.GAME_TEAM_PRESETS);
 		}
 
-		public static void addBlackListAll(Collection<String> abilityNames) {
+		public static boolean isDefaultMaxHealthEnabled() {
+			return get(ConfigNodes.GAME_DEFAULT_MAX_HEALTH_ENABLE);
+		}
+
+		public static int getDefaultMaxHealth() {
+			return get(ConfigNodes.GAME_DEFAULT_MAX_HEALTH_VALUE);
+		}
+
+		public static boolean isBlacklisted(String abilityName) {
+			return getBlackList().contains(abilityName);
+		}
+
+		public static void addBlacklist(Collection<String> abilityNames) {
 			Set<String> set = getBlackList();
 			if (set.addAll(abilityNames)) {
 				modifyProperty(ConfigNodes.GAME_BLACKLIST, set);
 			}
 		}
 
-		public static void addBlackList(String abilityName) {
+		public static void addBlacklist(String abilityName) {
 			Set<String> set = getBlackList();
 			if (set.add(abilityName)) {
 				modifyProperty(ConfigNodes.GAME_BLACKLIST, set);
 			}
 		}
 
-		public static void removeBlackListAll(Collection<String> abilityNames) {
+		public static void removeBlacklist(Collection<String> abilityNames) {
 			Set<String> set = getBlackList();
 			if (set.removeAll(abilityNames)) {
 				modifyProperty(ConfigNodes.GAME_BLACKLIST, set);
 			}
 		}
 
-		public static void removeBlackList(String abilityName) {
+		public static void removeBlacklist(String abilityName) {
 			Set<String> set = getBlackList();
 			if (set.remove(abilityName)) {
 				modifyProperty(ConfigNodes.GAME_BLACKLIST, set);
+			}
+		}
+
+		/**
+		 * @return blacklist에서 삭제된 경우 false, blacklist에 추가된 경우 true
+		 */
+		public static boolean toggleBlacklist(String abilityName) {
+			if (isBlacklisted(abilityName)) {
+				removeBlacklist(abilityName);
+				return false;
+			} else {
+				addBlacklist(abilityName);
+				return true;
 			}
 		}
 
